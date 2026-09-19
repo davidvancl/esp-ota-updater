@@ -1,8 +1,8 @@
 # esp-ota-updater
 
-Knihovna pro ESP8266 (PlatformIO, Arduino). Při startu zkontroluje nejnovější verzi v GitHub Releases a případně se sama aktualizuje.
+Library for ESP8266 (PlatformIO, Arduino). On startup it checks GitHub Releases for the latest version and updates itself if a newer one is available.
 
-## Přidání do projektu
+## Adding it to a project
 
 ### 1. `platformio.ini`
 
@@ -13,7 +13,7 @@ board = nodemcuv2
 framework = arduino
 monitor_speed = 115200
 custom_version = 0.0.1
-custom_ota_repo = uzivatel/nazev-repa
+custom_ota_repo = user/repo-name
 build_flags =
 	-DFW_VERSION=\"${this.custom_version}\"
 	-DOTA_REPO=\"${this.custom_ota_repo}\"
@@ -21,8 +21,8 @@ lib_deps =
 	https://github.com/davidvancl/esp-ota-updater.git#v1.0.0
 ```
 
-- `custom_version` je verze tvého firmwaru.
-- `custom_ota_repo` je tvůj projekt (`uzivatel/repo`), ve kterém se vydávají releasy.
+- `custom_version` is the version of your firmware.
+- `custom_ota_repo` is your project (`user/repo`) where the releases are published.
 
 ### 2. `src/main.cpp`
 
@@ -39,7 +39,7 @@ lib_deps =
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("Verze firmwaru: ");
+  Serial.print("Firmware version: ");
   Serial.println(FW_VERSION);
 
   OtaUpdater::run(WIFI_CREDENTIALS);
@@ -49,20 +49,22 @@ void loop() {
 }
 ```
 
-`OtaUpdater::run()` volej co nejdřív v `setup()`.
+Call `OtaUpdater::run()` as early as possible in `setup()`.
 
-### 3. `src/secrets.h` (WiFi údaje)
+### 3. `src/secrets.h` (WiFi credentials)
 
 ```cpp
-#define SECRET_SSID "nazev-wifi"
-#define SECRET_PASS "heslo-wifi"
+#define SECRET_SSID "wifi-name"
+#define SECRET_PASS "wifi-password"
 ```
 
-Přidej do `.gitignore`:
+Add it to `.gitignore`:
 
 ```
 src/secrets.h
 ```
+
+The credentials are saved to EEPROM after the first successful connection. Later builds without `secrets.h` (e.g. the ones built by CI) reuse the saved credentials.
 
 ### 4. `.github/workflows/release.yml`
 
@@ -81,13 +83,13 @@ jobs:
       contents: write
 ```
 
-### 5. První nahrání
+### 5. First upload
 
-Firmware nahraj přes USB (`pio run -t upload`). Dál se zařízení aktualizuje samo.
+Flash the firmware over USB (`pio run -t upload`). After that the device updates itself.
 
-## Vydání nové verze
+## Releasing a new version
 
-1. V `platformio.ini` zvyš `custom_version` (např. `0.0.1` → `0.0.2`).
-2. Commitni a pushni do `main`.
-3. Workflow vytvoří release se soubory `firmware.bin` a `version.txt`.
-4. Po restartu zařízení se nová verze nainstaluje.
+1. Bump `custom_version` in `platformio.ini` (e.g. `0.0.1` → `0.0.2`).
+2. Commit and push to `main`.
+3. The workflow creates a release with the `firmware.bin` and `version.txt` files.
+4. After the device restarts, the new version gets installed.

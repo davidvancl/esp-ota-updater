@@ -132,8 +132,6 @@ bool checkAndUpdate() {
   Serial.printf("[OTA] updating (free heap %u)\n", ESP.getFreeHeap());
   BearSSL::WiFiClientSecure client;
   client.setInsecure();
-  // Stahování jde přes CDN GitHubu, který neumí zmenšené TLS záznamy;
-  // s malým vstupním bufferem se spojení přeruší.
   client.setBufferSizes(16384, 512);
 
   ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
