@@ -1,0 +1,56 @@
+name: Release firmware
+
+on:
+  workflow_call:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/^custom_version *= *//p' platformio.ini | head -n1 | tr -d '\r ')
+          if [ -z "$VERSION" ]; then
+            echo "custom_version not found in platformio.ini" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.version.outputs.exists == 'false'
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        if: steps.version.outputs.exists == 'false'
+        with:
+          path: |
+            ~/.platformio
+            .pio/libdeps
+          key: pio-${{ hashFiles('platformio.ini') }}
+
+      - name: Build
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          pip install platformio
+          pio run
+          cp "$(ls .pio/build/*/firmware.bin | head -n1)" firmware.bin
+          echo "${{ steps.version.outputs.version }}" > version.txt
+
+      - name: Publish release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" firmware.bin version.txt \
+            --title "v${{ steps.version.outputs.version }}" --generate-notes

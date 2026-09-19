@@ -1,0 +1,7 @@
+{
+  "name": "OtaUpdater",
+  "version": "1.0.0",
+  "description": "Startup OTA update from GitHub Releases for ESP8266",
+  "frameworks": "arduino",
+  "platforms": "espressif8266"
+}
