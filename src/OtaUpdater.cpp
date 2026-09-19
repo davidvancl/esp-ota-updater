@@ -1,5 +1,6 @@
 #include "OtaUpdater.h"
 
+#include <EEPROM.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
@@ -14,6 +15,42 @@
 #endif
 
 namespace {
+
+constexpr uint32_t CREDENTIALS_MAGIC = 0x4F544131;  // "OTA1"
+
+struct WifiCredentials {
+  uint32_t magic;
+  char ssid[33];
+  char password[65];
+};
+
+bool loadCredentials(WifiCredentials& out) {
+  EEPROM.begin(sizeof(WifiCredentials));
+  EEPROM.get(0, out);
+  EEPROM.end();
+  if (out.magic != CREDENTIALS_MAGIC) return false;
+  out.ssid[sizeof(out.ssid) - 1] = '\0';
+  out.password[sizeof(out.password) - 1] = '\0';
+  return out.ssid[0] != '\0';
+}
+
+void saveCredentials(const char* ssid, const char* password) {
+  WifiCredentials current;
+  if (loadCredentials(current) && strcmp(current.ssid, ssid) == 0 &&
+      strcmp(current.password, password) == 0) {
+    return;
+  }
+
+  WifiCredentials creds = {};
+  creds.magic = CREDENTIALS_MAGIC;
+  strncpy(creds.ssid, ssid, sizeof(creds.ssid) - 1);
+  strncpy(creds.password, password, sizeof(creds.password) - 1);
+
+  EEPROM.begin(sizeof(WifiCredentials));
+  EEPROM.put(0, creds);
+  EEPROM.commit();
+  EEPROM.end();
+}
 
 String assetUrl(const char* asset) {
   return String("https://github.com/") + OTA_REPO + "/releases/latest/download/" + asset;
@@ -58,16 +95,25 @@ namespace OtaUpdater {
 
 bool connectWifi(const char* ssid, const char* password, uint32_t timeoutMs) {
   WiFi.mode(WIFI_STA);
+
+  WifiCredentials saved;
+  bool useSaved = false;
   if (ssid) {
-    WiFi.begin(ssid, password);
+    WiFi.begin(ssid, password ? password : "");
+  } else if (loadCredentials(saved)) {
+    useSaved = true;
+    WiFi.begin(saved.ssid, saved.password);
   } else {
     WiFi.begin();
   }
+
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED) {
     if (millis() - start > timeoutMs) return false;
     delay(200);
   }
+
+  if (ssid && !useSaved) saveCredentials(ssid, password ? password : "");
   return true;
 }
 
@@ -83,10 +129,12 @@ bool checkAndUpdate() {
 
   if (!isNewer(remote, FW_VERSION)) return false;
 
-  Serial.println("[OTA] updating");
+  Serial.printf("[OTA] updating (free heap %u)\n", ESP.getFreeHeap());
   BearSSL::WiFiClientSecure client;
   client.setInsecure();
-  client.setBufferSizes(1024, 512);
+  // Stahování jde přes CDN GitHubu, který neumí zmenšené TLS záznamy;
+  // s malým vstupním bufferem se spojení přeruší.
+  client.setBufferSizes(16384, 512);
 
   ESPhttpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   ESPhttpUpdate.rebootOnUpdate(true);
