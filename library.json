@@ -1,6 +1,6 @@
 {
   "name": "OtaUpdater",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Startup OTA update from GitHub Releases for ESP8266 and ESP32",
   "frameworks": "arduino",
   "platforms": ["espressif8266", "espressif32"]

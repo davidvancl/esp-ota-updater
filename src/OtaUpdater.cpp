@@ -45,8 +45,8 @@ using SecureClient = WiFiClientSecure;
 #define OTA_HTTP_UPDATE httpUpdate
 #endif
 
-constexpr uint32_t PRIMARY_MAGIC = 0x4F544131;  // "OTA1"
-constexpr uint32_t EXTRA_MAGIC = 0x4F544158;    // "OTAX"
+constexpr uint32_t PRIMARY_MAGIC = 0x4F544131;
+constexpr uint32_t EXTRA_MAGIC = 0x4F544158;
 constexpr size_t MAX_NETWORKS = 4;
 
 struct StoredNetwork {
@@ -54,13 +54,11 @@ struct StoredNetwork {
   char password[65];
 };
 
-// First network, same layout as v1.0.x (bytes 0-103), so apps keeping their own data from offset 128 are unaffected.
 struct PrimaryRecord {
   uint32_t magic;
   StoredNetwork network;
 };
 
-// Additional networks, written only when more than one network is configured.
 struct ExtraRecord {
   uint32_t magic;
   uint8_t count;
@@ -140,8 +138,7 @@ void saveCredentials(const WifiNetwork* networks, size_t count) {
   EEPROM.end();
 }
 
-// Secrets area: magic followed by "key\0value\0" pairs, terminated by an empty key.
-constexpr uint32_t SECRETS_MAGIC = 0x4F544153;  // "OTAS"
+constexpr uint32_t SECRETS_MAGIC = 0x4F544153;
 constexpr size_t SECRETS_DATA_OFFSET = OTA_EEPROM_SECRETS_OFFSET + sizeof(uint32_t);
 constexpr size_t SECRETS_DATA_SIZE = OTA_EEPROM_EXTRA_OFFSET - SECRETS_DATA_OFFSET;
 
@@ -161,7 +158,6 @@ std::unique_ptr<char[]> readSecrets() {
   return data;
 }
 
-// Calls fn(key, value) for every stored pair, stops when fn returns false.
 template <typename Fn>
 void forEachSecret(const char* data, Fn fn) {
   const char* end = data + SECRETS_DATA_SIZE;
@@ -205,7 +201,6 @@ bool isVisible(const char* ssid, int found) {
 bool connectAny(const WifiNetwork* networks, size_t count, uint32_t timeoutMs) {
   if (count == 1) return tryConnect(networks[0], timeoutMs);
 
-  // Networks seen in a scan go first, the rest (e.g. hidden SSIDs) are tried afterwards.
   int found = WiFi.scanNetworks();
   if (found < 0) found = 0;
   for (int pass = 0; pass < 2; pass++) {
@@ -315,7 +310,7 @@ bool saveSecret(const char* key, const char* value) {
 
   auto append = [&](const char* k, const char* v) {
     size_t needed = strlen(k) + 1 + strlen(v) + 1;
-    if (length + needed >= SECRETS_DATA_SIZE) return fits = false;  // keep room for the terminator
+    if (length + needed >= SECRETS_DATA_SIZE) return fits = false;
     memcpy(&next[length], k, strlen(k) + 1);
     memcpy(&next[length + strlen(k) + 1], v, strlen(v) + 1);
     length += needed;

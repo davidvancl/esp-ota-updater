@@ -18,7 +18,7 @@ build_flags =
 	-DFW_VERSION=\"${this.custom_version}\"
 	-DOTA_REPO=\"${this.custom_ota_repo}\"
 lib_deps =
-	https://github.com/davidvancl/esp-ota-updater.git#v1.1.0
+	https://github.com/davidvancl/esp-ota-updater.git#v1.1.1
 ```
 
 - `custom_version` is the version of your firmware.
